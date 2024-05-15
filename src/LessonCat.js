@@ -1,7 +1,7 @@
 function LessonCat(){
 
     return(
-        <div>This is cat</div>
+        <div>This is cat  1 </div>
     )
 }
 
