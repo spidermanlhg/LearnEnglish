@@ -49,8 +49,12 @@ def split_sound(audiopath, audiotype):
     print('保存完毕')
 
 
+
+split_sound( audiopath=r"C:\Users\kidsland\Desktop\mp3\1\vocals.wav" , audiotype="wav"  )
+
 # spleeter 用法介绍
+# 去除声音中的音乐，只留下人的声音。
 # spleeter separate -p spleeter:2stems -o C:\Users\kidsland\Desktop\LearnEnglish\other\3 C:\Users\kidsland\Desktop\LearnEnglish\public\uploads\3\000.mp3
 
-
+#分隔
 # spleeter separate -i C:\Users\kidsland\Desktop\LearnEnglish\public\uploads\3\000.mp3 -p spleeter:2stems -o C:\Users\kidsland\Desktop\LearnEnglish\other\3

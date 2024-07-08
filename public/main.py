@@ -12,7 +12,7 @@ app = Flask(__name__)
 
 
 
-# 上传内容
+# 上传音频文件接口
 @app.route('/api/upload/<path>', methods=['POST'])
 def upload( path ):
 
