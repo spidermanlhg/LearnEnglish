@@ -1,14 +1,61 @@
 from flask import Flask, request, jsonify,render_template
 from werkzeug.utils import secure_filename
 import os
-import split_sound
-
+# import split_sound
+import pymysql
 import datetime
 
 import pandas as pd
 
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
+
+
+db_config = {
+    'host': '120.46.184.38',
+    'user': 'spidermanlhg',
+    'password': '19830125',
+    'database': 'learn_english',
+    'charset': 'utf8mb4',
+    'cursorclass': pymysql.cursors.DictCursor
+}
+
+def query_db(query):
+
+    connection = pymysql.connect(**db_config)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            result = cursor.fetchall()
+        return result
+    finally:
+        connection.close()
+
+
+# 显示所有的books
+@app.route('/api/books')
+def get_books():
+    query = "SELECT * FROM books"
+    books = query_db(query)
+    book_list = [{"id": book["id"], "name": book['name']} for book in books]
+    return jsonify(book_list)
+
+
+# 根据book_id 查询 lessons 列表
+@app.route('/api/books/<id>')
+def get_lessons(id):
+    query = f"SELECT * FROM lessons where book_id = {id} "
+    lesson = query_db(query)
+    return jsonify(lesson)
+
+
+# 根据lesson_id 查询sentences 列表
+@app.route('/api/lessons/<id>')
+def get_sentences(id):
+    query = f"SELECT * FROM sentences where lesson_id = {id} "
+    lesson = query_db(query)
+    return jsonify(lesson)
 
 
 
@@ -28,7 +75,6 @@ def upload( path ):
     file.save( new_path+ "//" + file.filename)
 
     return jsonify(True)   
-
 
 
 
