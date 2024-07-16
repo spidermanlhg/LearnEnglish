@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify,render_template
+from flask import Flask, request, jsonify,render_template,send_file
 from werkzeug.utils import secure_filename
 import os
 # import split_sound
@@ -94,6 +94,17 @@ def sentence(sid,tid):
 #     split_sound( )
 
 #     return jsonify( fiels[ int(tid)-1] )
+
+
+# 服务端返回音频文件
+@app.route('/audio/<bid>/<lid>', methods=['GET'])
+def play_audio(bid, lid):  # 注意这里添加了 bid 和 lid 作为参数
+
+    # 指定音频文件的路径
+    audio_path = f'data/{bid}/{lid}/001.mp3'
+    
+    # 使用 send_file 函数发送音频文件
+    return send_file(audio_path, mimetype='audio/mpeg')
 
 
  
