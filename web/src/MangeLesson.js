@@ -1,116 +1,118 @@
+import React, { useEffect, useState } from "react";
+import { Space, Table, Tag, Button, Modal, Input, Upload, message } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
+import axios from "axios";
 
-import './App.css';
-import { UploadOutlined } from '@ant-design/icons';
-import { Button, Input, message, Upload, Form, Space } from 'antd';
-import axios from 'axios';
-import { useRef, useState } from 'react';
-
-const  URL = "http://127.0.0.1:5000";
+const App = () => {
 
 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [bookName, setBookName] = useState("");
+    const [booksList, setBooksList] = useState();
 
-
-const MangeLesson = () => {
-
-    const catId = useRef()
-
-    const [file, setFile] = useState([]);
-
-    const [uploading, setUploading] = useState(false);
-
-    const [action, setAction] = useState('/api/upload/')
-
-    const [path, setPath] = useState()
-
-    const changeCat = (e) => {
-
-        setAction('api/upload/' + e.target.value)
-    }
-
-    const props = {
-
-        beforeUpload:(file)=>{
-            setFile(file)
-            return false
-        }
-
-    };
-
-    const creatFolder=( values )=>{
-
-        axios.post(  URL+ "/api/create", values  )
-
-
-    }
-
-    const changePath = (v) =>{
-
-        setPath(v.target.value)
-
-    }
     
-    const [messageApi, contextHolder] = message.useMessage();
+  const getUploadProps = (bookId)  => ({
+    name: "file",
+    action: `/api/upload?bookid=${bookId}`,
+    headers: {
+      authorization: "authorization-text",
+    },
+    multiple: true,
+    onChange(info) {
+      if (info.file.status !== "uploading") {
+        console.log(info.file, info.fileList);
+      }
+      if (info.file.status === "done") {
+        message.success(`${info.file.name} file uploaded successfully`);
+      } else if (info.file.status === "error") {
+        message.error(`${info.file.name} file upload failed.`);
+      }
+    },
+  });
 
-
-    const handleUpload=()=>{
-
-
-        const formData = new FormData()
-        formData.append('file', file)
-
-        axios.post( URL+ '/api/upload/'+path , formData).then(res => {
-
-            // console.log( res['data'] )
-            
-            if (res['data']){
-                messageApi.open({
-                    type: 'success',
-                    content: '上传成功',
-                  });
-            }else{
-                messageApi.open({
-                    type: 'error',
-                    content: '上传失败',
-                });
-            }
-
-            
-        })
-    }
-
-
-
-    return (
-        <div style={{ textAlign: "left" }} >
-
-            {contextHolder}
-
-            <div>
-                上传音频：
-                <Input style={{width:"100px"}} placeholder='填写上传的路径'  onChange={ changePath } />
-                <Upload {...props}>
-                    <Button icon={<UploadOutlined />}>选择音频</Button>
-                </Upload>
-
-                <Button onClick={handleUpload}>上传</Button>
-            </div>
+  const columns = [
+    {
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
+    },
+    {
+      title: "书籍名称",
+      dataIndex: "name",
+      key: "name",
+    },
+    {
+      title: "上传",
+    //   dataIndex: "operation",
+      key: "operation",
+      render: (record) => (
+        <Upload {...getUploadProps(record.id)}>
+          <Button icon={<UploadOutlined />}>批量上传lessons</Button>
+        </Upload>
+      ),
+    },
+  ];
 
 
 
-            <div style={{ margin: "10px 0" }} >
-                <Form>
-                    填写音频路径：
-                    <Space.Compact >
-                        <Input />
-                        <Button type="primary">提交</Button>
-                    </Space.Compact>
-                </Form>
+  const fetchData = () => {
+    axios
+      .get("/api/books")
+      .then((r) => {
+        console.log(r);
+        setBooksList(r.data);
+      })
+      .catch((error) => {
+        console.error("Error fetching books:", error);
+      });
+  };
 
-            </div>
-        </div>
-    )
+  useEffect(() => fetchData(), []);
+
+  const showModal = () => {
+    setIsModalOpen(true);
+  };
+  const handleOk = (value) => {
+    axios
+      .post("/api/add_book", { book_name: bookName })
+      .then((r) => {
+        console.log("Book created successfully:", r.data);
+        setIsModalOpen(false);
+        setBookName("");
+        fetchData();
+      })
+      .catch((error) => {
+        console.error("Error creating book:", error);
+        // 可以在这里处理错误，如提示用户创建失败等
+      });
+  };
+  const handleCancel = () => {
+    setIsModalOpen(false);
+
+    setBookName("");
+  };
+
+  return (
+    <div>
+      <Button type="primary" onClick={showModal}>
+        新建
+      </Button>
+
+      <Table columns={columns} dataSource={booksList} />
+
+      <Modal
+        title="Basic Modal"
+        open={isModalOpen}
+        onOk={handleOk}
+        onCancel={handleCancel}
+      >
+        <Input
+          defaultValue={"请输入书籍名称"}
+          value={bookName}
+          onChange={(e) => setBookName(e.target.value)}
+        />
+      </Modal>
+    </div>
+  );
 };
-
-
-export default MangeLesson;
-
+export default App;
