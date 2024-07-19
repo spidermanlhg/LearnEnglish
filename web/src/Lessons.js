@@ -7,6 +7,9 @@ function Lessons() {
   // 获取url中的bookid
   const { bookid } = useParams();
 
+  // 页面标题 book name
+  const [bookName, setBookName ] = useState()
+
   //  设置课程下拉列表的选项
   const [lessonList, setLessonList] = useState();
 
@@ -27,10 +30,14 @@ function Lessons() {
   useEffect(() => {
     axios.get(`/api/books/${bookid}`).then((r) => {
       if (r.data !== "") {
-        const lesson_list = r.data.map((item) => {
+        const lesson_list = r.data.lessons.map((item) => {
           return { value: item.id, label: item.name };
         });
         setLessonList(lesson_list);
+
+        setBookName(r.data.book_name);
+
+
       }
     });
   }, []);
@@ -62,6 +69,7 @@ function Lessons() {
 
   return (
     <div>
+        <h1>{bookName}</h1>
       <div style={{ textAlign: "left" }}>
         选择第几课：
         <Select

@@ -84,9 +84,22 @@ def get_books():
 # 根据book_id 查询 lessons 列表
 @app.route('/api/books/<id>')
 def get_lessons(id):
-    query = f"SELECT * FROM lessons WHERE book_id = {id} ORDER BY name ASC;"
-    lesson = query_db(query)
-    return jsonify(lesson)
+
+    query1 = f"SELECT * FROM lessons WHERE book_id = {id} ORDER BY name ASC;"
+    lessons = query_db(query1)
+
+    query2  = f"SELECT * FROM books WHERE id = {id} "
+    book_name = query_db(query2)[0]
+
+    print( book_name )
+
+    # print( book_name,lesson  )
+
+    # print( { "book_name" :  book_name[0]["name"], "lessons": lesson  }  )
+
+    return jsonify( { "book_name" :  book_name["name"], "lessons": lessons  } )
+
+
 
 
 # 根据lesson_id 查询sentences 列表
