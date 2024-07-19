@@ -17,7 +17,7 @@ function Lessons() {
   const [lessonid, setLessonid] = useState(0);
 
   //   更换句子
-  const [sentenceid, setSentenceid] = useState(0);
+  const [sentenceSn, setSentenceSn] = useState(0);
 
   //句子的路径
   const [path, setPath] = useState();
@@ -38,29 +38,27 @@ function Lessons() {
   //  选择某课后，调取该课的句子列表
   const onChangeLesson = (value) => {
     axios.get(`/api/lessons/${value}`).then((r) => {
+      console.log(r.data);
+
       setSentenceList(r.data);
 
       setLessonid(value);
 
       if (r.data.length > 0) {
-        setSentenceid(r.data[0].id);
+        setSentenceSn(r.data[0].sn);
       }
     });
   };
 
   useEffect(() => {
     const obj = sentenceList?.find((item) => {
-      return item.id === sentenceid;
+      return item.sn === sentenceSn;
     });
 
-    
-
     if (obj && obj.name) {
-
       setPath(`/audio/${bookid}/${lessonid}/${obj.name}`);
     }
-  }, [bookid, lessonid, sentenceid, sentenceList]);
-
+  }, [bookid, lessonid, sentenceSn, sentenceList]);
 
   return (
     <div>
@@ -79,8 +77,8 @@ function Lessons() {
         <InputNumber
           min={0}
           max={100}
-          onChange={setSentenceid}
-          value={sentenceid}
+          onChange={setSentenceSn}
+          value={sentenceSn}
         />
       </div>
 
@@ -92,8 +90,8 @@ function Lessons() {
 
       <div>
         <Button onClick={() => audio.current.play()}>重复</Button>
-        <Button onClick={() => setSentenceid(sentenceid + 1)}>下一句</Button>
-        <Button onClick={() => setSentenceid(sentenceid - 1)}>上一句</Button>
+        <Button onClick={() => setSentenceSn(sentenceSn + 1)}>下一句</Button>
+        <Button onClick={() => setSentenceSn(sentenceSn - 1)}>上一句</Button>
       </div>
     </div>
   );

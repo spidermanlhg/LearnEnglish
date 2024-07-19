@@ -30,6 +30,10 @@ const App = () => {
     },
   });
 
+  const onClickSplit =( id )=>{
+    axios.get( `/api/split/${id}`   )
+  }
+
   const columns = [
     {
       title: "ID",
@@ -51,6 +55,16 @@ const App = () => {
         </Upload>
       ),
     },
+    {
+        title: "分隔音频",
+      //   dataIndex: "operation",
+        key: "split",
+        render: (record) => (
+
+            <Button  onClick={ () => onClickSplit( record.id )  } >批量生成sentences</Button>
+        ),
+      },
+    
   ];
 
 
