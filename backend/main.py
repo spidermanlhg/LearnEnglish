@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify,render_template,send_file
 from werkzeug.utils import secure_filename
 import os
-# import split_sound
+from split_sound import split_sound
 import pymysql
 import datetime
 
@@ -84,7 +84,7 @@ def get_books():
 # 根据book_id 查询 lessons 列表
 @app.route('/api/books/<id>')
 def get_lessons(id):
-    query = f"SELECT * FROM lessons where book_id = {id} "
+    query = f"SELECT * FROM lessons WHERE book_id = {id} ORDER BY name ASC;"
     lesson = query_db(query)
     return jsonify(lesson)
 
@@ -101,35 +101,14 @@ def get_sentences(id):
 #批量上传课程音频文件
 @app.route('/api/upload', methods=['POST', 'GET'])
 def upload_files():
-    # 获取book_id
-    # book_id = request.form.get('book_id')
-
-
-    # # 检查book_id是否存在
-    # if not book_id:
-    #     return jsonify({'error': 'Missing book_id parameter'}), 400
-    
-    # # 检查是否有上传的文件
-    # if 'file' not in request.files:
-    #     return jsonify({'error': 'No file part in the request'}), 400
-    
-    # files = request.files.getlist('file')
-
-    # if 'file' not in request.files:
-    #     return 'No file part'
-    # file = request.files['file']
-    # # 处理文件，比如保存到服务器某个路径
-    # file.save('/uploaded/')
-    # return 'File uploaded successfully'
 
     bookid = request.args.get("bookid")
  
-
     if request.method == 'POST':
         f = request.files['file']
         # print(request.files)
         bookname = secure_filename(f.filename)
-        f.save(os.path.join( 'uploads' , bookname))
+        f.save(os.path.join( 'uploads', bookid , bookname))
 
 
     try:
@@ -153,45 +132,51 @@ def upload_files():
         connection.close()
     
 
-    return 'file uploaded successfully'
+    return jsonify({'message': 'Files uploaded successfully'}), 200
 
-   
-    # # 检查是否有文件上传
-    # if len(files) == 0:
-    #     return jsonify({'error': 'No files uploaded'}), 400
+
+
+# 根据bookid批量拆分 本书下所有的mp3音频文件，并把拆分后的mp3音频文件存入到sentence表中。
+@app.route('/api/split/<bookid>', methods=['GET']  )
+def split(bookid ):
+
+    try:
+
+        connection = pymysql.connect(**db_config)
+
+        cursor = connection.cursor()
+        # 插入书籍信息，book_id自增，不需要传入
+
+        query = f"SELECT * FROM lessons where book_id = {bookid} "
+        cursor.execute( query )
+        lessons = cursor.fetchall()
+
+
+        for i in lessons:
+            sound_list = split_sound( 
+                audiopath= os.path.join("uploads", str(bookid), i['name']),
+                audiotype="mp3" , 
+                output=os.path.join("data", str(bookid), str( i['id'] ) )
+            )
+
+            for s in sound_list:
+                print(s)
+                insert_query = f"INSERT INTO sentences (sn, lesson_id, name) VALUES ( {s['sn'] }, {i['id']}, '{s['name']}' )"
+                cursor.execute(insert_query)
+                connection.commit()
+
+    except Exception as e:
+        connection.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        cursor.close()
+        connection.close()
     
-    # # 创建存储文件的路径
-    # book_upload_folder = os.path.join(app.config['upload'], str(book_id))
-    # os.makedirs(book_upload_folder, exist_ok=True)
 
-    # # 处理每个上传的文件
-    # for file in files:
-    #     # 检查文件名
-    #     if file.filename == '':
-    #         return jsonify({'error': 'One of the uploaded files has no filename'}), 400
-        
-    #     # 安全获取文件名
-    #     filename = secure_filename(file.filename)
-
-    #     # 保存文件到指定路径
-    #     file.save(os.path.join(book_upload_folder, filename))
-
-    #     # 将文件信息存入数据库
-    #     new_lesson = Lesson(book_id=book_id, name=filename)
-    #     db.session.add(new_lesson)
-    #     db.session.commit()
-
-    # return jsonify({'message': 'Files uploaded successfully'}), 200
+    return jsonify({'message': 'Files split successfully'} )
 
 
-
-
-# @app.route('/api/split', methods=['POST']  )
-# def split(sid,tid):
-    
-#     split_sound( )
-
-#     return jsonify( fiels[ int(tid)-1] )
 
 
 # 服务端返回音频文件
