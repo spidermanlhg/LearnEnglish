@@ -210,4 +210,4 @@ def play_audio(bid, lid, sid):  # 注意这里添加了 bid 和 lid 作为参数
  
 
 if __name__ == '__main__':
-    app.run( debug=True )
+    app.run( debug=True, port=5000 )
