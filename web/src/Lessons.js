@@ -3,105 +3,112 @@ import { Button, InputNumber, Select } from "antd";
 import { Toast } from "antd-mobile";
 import axios from "axios";
 import { useParams } from "react-router-dom";
-import { config } from "antd-mobile/es/components/toast/methods";
 
 function Lessons() {
-  // 获取url中的bookid
-  const { bookid } = useParams();
+  const { bookid } = useParams(); // 获取url中的bookid
 
-  // 页面标题 book name
-  const [bookName, setBookName] = useState(); 
+  const [bookName, setBookName] = useState(); // 页面标题 book name
 
-  //  课程下拉列表的选项
-  const [lessonList, setLessonList] = useState();
+  const [lessonList, setLessonList] = useState(); //  课程下拉列表的选项
 
-  //  某个课程所有句子列表
-  const [sentenceList, setSentenceList] = useState();
+  const [sentenceList, setSentenceList] = useState(); //  某个课程所有句子列表
 
-  //  修改课程下拉菜单，更换课程
-  const [lessonid, setLessonid] = useState(0);
+  const [lessonid, setLessonid] = useState(0); //  修改课程下拉菜单，更换课程
 
-  //   修改句子输入框， 更换句子
-  const [sentenceSn, setSentenceSn] = useState(0);
+  const [sentenceIndex, setSentenceIndex] = useState(0); //   修改句子输入框， 更换句子
 
-  // 课程中句子总数
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(0); // 课程中句子总数
 
-  //句子的路径
-  const [path, setPath] = useState();
+  const [path, setPath] = useState(); //句子音频文件的路径
 
-  const audio = useRef();
+  const useAudio = useRef();
+
+
+//通过bookid 获取 课程内容。
+  const fetchBookData = async () => {
+    try {
+      const { data } = await axios.get(`/api/books/${bookid}`);
+
+      if (data ) {
+        const lessons = data.lessons.map(item => ({ value: item.id, label: item.name }));
+        setLessonList(lessons);
+        setBookName(data.book_name);
+      }
+    } catch (error) {
+      console.error('Error fetching book data:', error);
+    }
+  };
+
+
+//选择某课后，获取本课的所有句子
+const fetchLessonSentences = async (value) => {
+    try {
+      const { data } = await axios.get(`/api/lessons/${value}`);
+      if (data.length) {
+        setSentenceList(data);  //把获取到的句子列表设置到sentence list中。
+        setLessonid(value);  // 在第几课下拉菜单中选中句子
+        setSentenceIndex(data[0].sn);  //句子在本课中的排序
+        setTotal(data.length);  //句子总数
+      }
+    } catch (error) {
+      console.error('Error fetching sentences:', error);
+    }
+  };
+
 
   useEffect(() => {
-    axios.get(`/api/books/${bookid}`).then((r) => {
-      if (r.data !== "") {
-        const lesson_list = r.data.lessons.map((item) => {
-          return { value: item.id, label: item.name };
-        });
-        setLessonList(lesson_list);
-
-        setBookName(r.data.book_name)
-
-        console.log(bookName  )
-      }
-    });
+    fetchBookData()
   }, []);
 
-  //  选择某课后，获取本课的所有句子
-  const onChangeLesson = (value) => {
-    axios.get(`/api/lessons/${value}`).then((r) => {
-      console.log(r.data);
-
-      setSentenceList(r.data);
-
-      setLessonid(value);
-
-      if (r.data.length > 0 ) {
-
-        setSentenceSn(r.data[0].sn);
-
-        setTotal(r.data.length);
-      }
-    });
-  };
 
   useEffect(() => {
-    const obj = sentenceList?.find((item) => {
-      return item.sn === sentenceSn;
-    });
+    const obj = sentenceList?.find (item => item.sn === sentenceIndex );
 
     if (obj && obj.name) {
-      setPath(`/audio/${bookid}/${lessonid}/${obj.name}`);
+      const path = `/audio/${bookid}/${lessonid}/${obj.name}`;  // 设置句子的音频文件路径
+      setPath(path) 
     }
-  }, [bookid, lessonid, sentenceSn, sentenceList]);
+  }, [bookid, lessonid, sentenceIndex, sentenceList]);
 
-  const preSentence = () => {
-    if (sentenceSn === 1) {
-      Toast.show({
-        content: "已经是第一句了",
-      });
-    } else {
-      setSentenceSn(sentenceSn - 1);
+
+
+  // 更换句子
+const changeSentence = (type, value) => {
+  
+    switch (type) {
+        
+      case 'previous':
+        if (sentenceIndex === 1) {
+            Toast.show({
+              content: "已经是第一句了",
+            });
+          } else {
+              setSentenceIndex(sentenceIndex - 1);
+          }
+        break;
+      case 'next':
+        if (sentenceIndex === total) {
+            Toast.show({
+              content: "已经是最后一句了",
+            });
+          } else {
+              setSentenceIndex(sentenceIndex + 1);
+          }
+        break;
+
+      case 'change':
+        if (value >= 1 && value <= total) {
+            setSentenceIndex(value);
+        }
+
+        break;
+      default:
+        return; // 如果类型不匹配，函数退出
     }
+  
+
   };
 
-  const nextSentence = () => {
-
-    if (sentenceSn === total ) {
-        Toast.show({
-          content: "已经是最后一句了",
-        });
-      } else {
-        setSentenceSn(sentenceSn + 1);
-      }
-
-  };
-
-  const handleInputChange = (value) => {
-    if (value >= 1 && value <= total) {
-      setSentenceSn(value);
-    }
-  };
 
   return (
     <div>
@@ -110,7 +117,7 @@ function Lessons() {
         选择第几课：
         <Select
           defaultValue={"请选择"}
-          onChange={(value) => onChangeLesson(value)}
+          onChange={(value) => fetchLessonSentences(value)}
           options={lessonList}
           style={{ width: 120 }}
         />
@@ -121,22 +128,22 @@ function Lessons() {
         <InputNumber
           min={0}
           max={100}
-          onChange={handleInputChange}
-          value={sentenceSn}
+          onChange={ value=> changeSentence( "input", value ) }
+          value={sentenceIndex}
         />{" "}
         共{total}句
       </div>
 
       <div style={{ margin: "10px 0px" }}>
-        <audio ref={audio} controls src={path} autoPlay></audio>
+        <audio ref={useAudio} controls src={path} autoPlay></audio>
       </div>
 
       <div>{path}</div>
 
       <div>
-        <Button onClick={() => audio.current.play()}>重复</Button>
-        <Button onClick={nextSentence}>下一句</Button>
-        <Button onClick={preSentence}>上一句</Button>
+        <Button onClick={ () => useAudio.current.play()}>重复</Button>
+        <Button onClick={ ()=> changeSentence("next")}>下一句</Button>
+        <Button onClick={ ()=>  changeSentence("pre")}>上一句</Button>
       </div>
     </div>
   );
