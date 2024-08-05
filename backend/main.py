@@ -1,21 +1,37 @@
 from flask import Flask, request, jsonify,render_template,send_file
 from werkzeug.utils import secure_filename
-import os
+import os,sys
 from split_sound import split_sound
 import pymysql
 import datetime
-
-import pandas as pd
-
-from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 
 
+load_dotenv()
+
+
+# 现在环境变量可以从 .env 文件中获取
+environment = os.getenv('ENVIRONMENT')
+database_host = os.getenv('DATABASE_HOST')
+database_user = os.getenv('DATABASE_USER')
+database_pwd = os.getenv('DATABASE_PWD')
+print(environment,database_host , database_user, database_pwd )
+
+
+
+# 获取当前脚本的完整路径
+script_path = os.path.abspath(sys.argv[0])
+
+# 去掉脚本名称，只保留目录路径
+cur_dir = os.path.dirname(script_path)
+
+
 db_config = {
-    'host': '120.46.184.38',
-    'user': 'spidermanlhg',
-    'password': '19830125',
+    'host': database_host,
+    'user': database_user,
+    'password': database_pwd,
     'database': 'learn_english',
     'charset': 'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor
@@ -55,11 +71,15 @@ def add_book():
         # 获取刚插入的书籍的自增id
         book_id = cursor.lastrowid
 
+
+
         # 创建以书籍id为名的文件夹
-        folder_path = os.path.join(os.getcwd(), 'uploads', str(book_id))
+        folder_path = os.path.join( cur_dir , 'uploads', str(book_id))
+        print( folder_path )
+
         os.makedirs(folder_path)
 
-        return jsonify({'message': 'Book added successfully', 'book_id': book_id}), 200
+        return jsonify({'message': f'Book added successfully', 'book_id': book_id}), 200
 
     except Exception as e:
         connection.rollback()
@@ -91,15 +111,7 @@ def get_lessons(id):
     query2  = f"SELECT * FROM books WHERE id = {id} "
     book_name = query_db(query2)[0]
 
-    print( book_name )
-
-    # print( book_name,lesson  )
-
-    # print( { "book_name" :  book_name[0]["name"], "lessons": lesson  }  )
-
     return jsonify( { "book_name" :  book_name["name"], "lessons": lessons  } )
-
-
 
 
 # 根据lesson_id 查询sentences 列表
@@ -121,7 +133,7 @@ def upload_files():
         f = request.files['file']
         # print(request.files)
         bookname = secure_filename(f.filename)
-        f.save(os.path.join( 'uploads', bookid , bookname))
+        f.save(os.path.join( cur_dir, 'uploads', bookid , bookname))
 
 
     try:
@@ -167,12 +179,14 @@ def split(bookid ):
 
         for i in lessons:
             sound_list = split_sound( 
-                audiopath= os.path.join("uploads", str(bookid), i['name']),
+                audiopath= os.path.join( cur_dir, "uploads", str(bookid), i['name']),
                 audiotype="mp3" , 
-                output=os.path.join("data", str(bookid), str( i['id'] ) )
+                output=os.path.join(cur_dir,"data", str(bookid), str( i['id'] ) )
             )
 
             for s in sound_list:
+
+                # 准备写一下删除代码，按照lesson_id，批量删除这个id下的所有分隔后的文件，然后再执行插入sql。
                 print(s)
                 insert_query = f"INSERT INTO sentences (sn, lesson_id, name) VALUES ( {s['sn'] }, {i['id']}, '{s['name']}' )"
                 cursor.execute(insert_query)
@@ -193,17 +207,15 @@ def split(bookid ):
 
 
 # 服务端返回音频文件
-@app.route('/audio/<bid>/<lid>/<sid>', methods=['GET'])
+@app.route('/api/audio/<bid>/<lid>/<sid>', methods=['GET'])
 def play_audio(bid, lid, sid):  # 注意这里添加了 bid 和 lid 作为参数
 
     # 指定音频文件的路径
-    audio_path = f'data/{bid}/{lid}/{sid}'
+
+    audio_path= os.path.join( cur_dir, "data", str(bid), str(lid), str(sid) )
     
     # 使用 send_file 函数发送音频文件
     return send_file(audio_path, mimetype='audio/mpeg')
-
-
-
 
 
     

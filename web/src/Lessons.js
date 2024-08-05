@@ -23,92 +23,83 @@ function Lessons() {
 
   const useAudio = useRef();
 
-
-//通过bookid 获取 课程内容。
+  //通过bookid 获取 课程内容。
   const fetchBookData = async () => {
     try {
       const { data } = await axios.get(`/api/books/${bookid}`);
 
-      if (data ) {
-        const lessons = data.lessons.map(item => ({ value: item.id, label: item.name }));
+      if (data) {
+        const lessons = data.lessons.map((item) => ({
+          value: item.id,
+          label: item.name,
+        }));
         setLessonList(lessons);
         setBookName(data.book_name);
       }
     } catch (error) {
-      console.error('Error fetching book data:', error);
+      console.error("Error fetching book data:", error);
     }
   };
 
-
-//选择某课后，获取本课的所有句子
-const fetchLessonSentences = async (value) => {
+  //选择某课后，获取本课的所有句子
+  const fetchLessonSentences = async (value) => {
     try {
       const { data } = await axios.get(`/api/lessons/${value}`);
       if (data.length) {
-        setSentenceList(data);  //把获取到的句子列表设置到sentence list中。
-        setLessonid(value);  // 在第几课下拉菜单中选中句子
-        setSentenceIndex(data[0].sn);  //句子在本课中的排序
-        setTotal(data.length);  //句子总数
+        setSentenceList(data); //把获取到的句子列表设置到sentence list中。
+        setLessonid(value); // 在第几课下拉菜单中选中句子
+        setSentenceIndex(data[0].sn); //句子在本课中的排序
+        setTotal(data.length); //句子总数
       }
     } catch (error) {
-      console.error('Error fetching sentences:', error);
+      console.error("Error fetching sentences:", error);
     }
   };
 
-
   useEffect(() => {
-    fetchBookData()
+    fetchBookData();
   }, []);
 
-
   useEffect(() => {
-    const obj = sentenceList?.find (item => item.sn === sentenceIndex );
+    const obj = sentenceList?.find((item) => item.sn === sentenceIndex);
 
     if (obj && obj.name) {
-      const path = `/audio/${bookid}/${lessonid}/${obj.name}`;  // 设置句子的音频文件路径
-      setPath(path) 
+      const path = `/api/audio/${bookid}/${lessonid}/${obj.name}`; // 设置句子的音频文件路径
+      setPath(path);
     }
   }, [bookid, lessonid, sentenceIndex, sentenceList]);
 
-
-
   // 更换句子
-const changeSentence = (type, value) => {
-  
+  const changeSentence = (type, value) => {
     switch (type) {
-        
-      case 'previous':
+      case "previous":
         if (sentenceIndex === 1) {
-            Toast.show({
-              content: "已经是第一句了",
-            });
-          } else {
-              setSentenceIndex(sentenceIndex - 1);
-          }
-        break;
-      case 'next':
-        if (sentenceIndex === total) {
-            Toast.show({
-              content: "已经是最后一句了",
-            });
-          } else {
-              setSentenceIndex(sentenceIndex + 1);
-          }
-        break;
-
-      case 'change':
-        if (value >= 1 && value <= total) {
-            setSentenceIndex(value);
+          Toast.show({
+            content: "已经是第一句了",
+          });
+        } else {
+          setSentenceIndex(sentenceIndex - 1);
         }
-
+        break;
+      case "next":
+        if (sentenceIndex === total) {
+          Toast.show({
+            content: "已经是最后一句了",
+          });
+        } else {
+          setSentenceIndex(sentenceIndex + 1);
+        }
+        break;
+      case "input":
+        if (value >= 1 && value <= total) {
+          setSentenceIndex(value);
+        }
+        console.log(  value )
         break;
       default:
         return; // 如果类型不匹配，函数退出
     }
-  
-
   };
-
 
   return (
     <div>
@@ -128,9 +119,9 @@ const changeSentence = (type, value) => {
         <InputNumber
           min={0}
           max={100}
-          onChange={ value=> changeSentence( "input", value ) }
+          onChange={(value) => changeSentence("input", value)}
           value={sentenceIndex}
-        />{" "}
+        />
         共{total}句
       </div>
 
@@ -141,9 +132,9 @@ const changeSentence = (type, value) => {
       <div>{path}</div>
 
       <div>
-        <Button onClick={ () => useAudio.current.play()}>重复</Button>
-        <Button onClick={ ()=> changeSentence("next")}>下一句</Button>
-        <Button onClick={ ()=>  changeSentence("pre")}>上一句</Button>
+        <Button onClick={() => useAudio.current.play()}>重复</Button>
+        <Button onClick={() => changeSentence("next")}>下一句</Button>
+        <Button onClick={() => changeSentence("pre")}>上一句</Button>
       </div>
     </div>
   );

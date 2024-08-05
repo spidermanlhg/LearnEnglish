@@ -1,7 +1,13 @@
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
-import os
+import os, sys
 import shutil
+
+# 获取当前脚本的完整路径
+script_path = os.path.abspath(sys.argv[0])
+
+# 去掉脚本名称，只保留目录路径
+cur_dir = os.path.dirname(script_path)
 
 
 def split_sound(audiopath, audiotype, output):
@@ -47,6 +53,7 @@ def split_sound(audiopath, audiotype, output):
 
 
     return name_list
+
 
 # 示例用法
 if __name__ == "__main__":

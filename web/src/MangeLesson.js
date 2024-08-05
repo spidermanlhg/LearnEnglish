@@ -1,17 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { Space, Table, Tag, Button, Modal, Input, Upload, message } from "antd";
+import {
+  Space,
+  Table,
+  Tag,
+  Button,
+  Modal,
+  Input,
+  Upload,
+  message,
+  Spin,
+} from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import axios from "axios";
 
 const App = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);  //是否打开上传弹窗
+  const [bookName, setBookName] = useState("");  // 书籍名称
+  const [booksList, setBooksList] = useState();  // 书籍列表
+  const [loading, setLoading] = useState(false);  // 分隔音频时loading状态。
+  const [messageApi, contextHolder] = message.useMessage();  //分隔成功后的提示语
+  const [length, setLength] = useState(0);  //某个课程中lessons的数量
 
-
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [bookName, setBookName] = useState("");
-    const [booksList, setBooksList] = useState();
-
-    
-  const getUploadProps = (bookId)  => ({
+  const getUploadProps = (bookId) => ({
     name: "file",
     action: `/api/upload?bookid=${bookId}`,
     headers: {
@@ -30,9 +40,18 @@ const App = () => {
     },
   });
 
-  const onClickSplit =( id )=>{
-    axios.get( `/api/split/${id}`   )
-  }
+  // 分隔音频文件
+  const onClickSplit = (id) => {
+    setLoading(true);
+
+    axios.get(`/api/split/${id}`).then(() => {
+      setLoading(false);
+      messageApi.open({
+        type: "success",
+        content: "批量分隔完成",
+      });
+    });
+  };
 
   const columns = [
     {
@@ -46,8 +65,16 @@ const App = () => {
       key: "name",
     },
     {
+        title:"lessons数量",
+        // dataIndex:"length",
+        key:"length",
+        render:()=>(
+            <Button>{length}</Button>
+        )
+    },
+    {
       title: "上传",
-    //   dataIndex: "operation",
+      //   dataIndex: "operation",
       key: "operation",
       render: (record) => (
         <Upload {...getUploadProps(record.id)}>
@@ -56,18 +83,15 @@ const App = () => {
       ),
     },
     {
-        title: "分隔音频",
-      //   dataIndex: "operation",
-        key: "split",
-        render: (record) => (
-
-            <Button  onClick={ () => onClickSplit( record.id )  } >批量生成sentences</Button>
-        ),
-      },
-    
+      title: "分隔音频",
+      key: "split",
+      render: (record) => (
+        <Button onClick={() => onClickSplit(record.id)} loading={loading}>
+          批量生成sentences
+        </Button>
+      ),
+    },
   ];
-
-
 
   const fetchData = () => {
     axios
@@ -108,6 +132,7 @@ const App = () => {
 
   return (
     <div>
+      {contextHolder}
       <Button type="primary" onClick={showModal}>
         新建
       </Button>
