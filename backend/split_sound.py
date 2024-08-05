@@ -26,7 +26,7 @@ def split_sound(audiopath, audiotype, output):
 
         # 分割
         print('开始分割')
-        chunks = split_on_silence(sound, min_silence_len=100, silence_thresh=-70, keep_silence=600)
+        chunks = split_on_silence(sound, min_silence_len=200, silence_thresh=-70, keep_silence=1000)
 
         # 创建保存目录
         if os.path.exists(output):
@@ -39,12 +39,11 @@ def split_sound(audiopath, audiotype, output):
         # 保存所有分段
         print('开始保存')
         for i, chunk in enumerate(chunks):
-            if len(chunk) > 1000:  # 只保存大于1000毫秒的片段
-                # 生成文件名，格式化数字以保证文件名排序正确
-                save_name = os.path.join(output, f"{i+1:03d}.{audiotype}")
-                chunk.export(save_name, format=audiotype)
-                name_list.append(  { "sn":i+1 ,  "name":f"{i+1:03d}.{audiotype}" }  )  #把分隔后的mp3文件名放入一个list中，用于函数返回值
-                print(f'{i+1:03d}', len(chunk))
+            # 生成文件名，格式化数字以保证文件名排序正确
+            save_name = os.path.join(output, f"{i+1:03d}.{audiotype}")
+            chunk.export(save_name, format=audiotype)
+            name_list.append(  { "sn":i+1 ,  "name":f"{i+1:03d}.{audiotype}" }  )  #把分隔后的mp3文件名放入一个list中，用于函数返回值
+            print(f'{i+1:03d}', len(chunk))
 
         print('保存完毕')
 
@@ -58,9 +57,9 @@ def split_sound(audiopath, audiotype, output):
 # 示例用法
 if __name__ == "__main__":
 
-    audiopath = r"D:\workspace\LearnEnglish\backend\uploads\1\04 曲目 4.mp3"  # 输入音频文件路径
+    audiopath = r"D:\workspace\LearnEnglish\backend\uploads\34\09_9.mp3"  # 输入音频文件路径
     audiotype = "mp3"  # 输入音频文件类型
-    output = r"D:\workspace\LearnEnglish\backend\data\1\4\\"  # 输出目录路径
+    output = r"D:\workspace\LearnEnglish\backend\uploads\34\split" # 输出目录路径
 
     split_sound(audiopath, audiotype, output)
 

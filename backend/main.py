@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify,render_template,send_file
 from werkzeug.utils import secure_filename
-import os,sys
+import os,sys,shutil
 from split_sound import split_sound
 import pymysql
 import datetime
@@ -48,7 +48,6 @@ def query_db(query):
     finally:
         connection.close()
 
-
 # 创建book文件夹
 @app.route( '/api/add_book' , methods=['POST'] )
 def add_book():
@@ -90,8 +89,6 @@ def add_book():
         connection.close()
 
 
-
-
 # 显示所有的books
 @app.route('/api/books')
 def get_books():
@@ -109,6 +106,7 @@ def get_lessons(id):
     lessons = query_db(query1)
 
     query2  = f"SELECT * FROM books WHERE id = {id} "
+
     book_name = query_db(query2)[0]
 
     return jsonify( { "book_name" :  book_name["name"], "lessons": lessons  } )
@@ -170,13 +168,22 @@ def split(bookid ):
         connection = pymysql.connect(**db_config)
 
         cursor = connection.cursor()
-        # 插入书籍信息，book_id自增，不需要传入
 
+        
+        # 在生成前，先删除掉已存在分隔的音频文件，以免分隔后的文件重复。 
+        shutil.rmtree( os.path.join( cur_dir, "data", str(bookid) ), ignore_errors=True  )
+        # 同时删除数据库中，这个bookid下所有的sentences。
+        delete_lessons = f"DELETE FROM sentences where book_id = {bookid} "
+        cursor.execute( delete_lessons )
+        connection.commit()
+
+
+        # 根据bookid查询所有的lessons
         query = f"SELECT * FROM lessons where book_id = {bookid} "
         cursor.execute( query )
         lessons = cursor.fetchall()
 
-
+        # 对所有的lessons遍历
         for i in lessons:
             sound_list = split_sound( 
                 audiopath= os.path.join( cur_dir, "uploads", str(bookid), i['name']),
@@ -186,11 +193,10 @@ def split(bookid ):
 
             for s in sound_list:
 
-                # 准备写一下删除代码，按照lesson_id，批量删除这个id下的所有分隔后的文件，然后再执行插入sql。
-                print(s)
                 insert_query = f"INSERT INTO sentences (sn, lesson_id, name) VALUES ( {s['sn'] }, {i['id']}, '{s['name']}' )"
                 cursor.execute(insert_query)
                 connection.commit()
+
 
     except Exception as e:
         connection.rollback()

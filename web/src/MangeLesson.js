@@ -69,7 +69,7 @@ const App = () => {
         // dataIndex:"length",
         key:"length",
         render:()=>(
-            <Button>{length}</Button>
+            <Button type="link" >{length}</Button>
         )
     },
     {
@@ -99,6 +99,8 @@ const App = () => {
       .then((r) => {
         console.log(r);
         setBooksList(r.data);
+
+        // setLength(  )
       })
       .catch((error) => {
         console.error("Error fetching books:", error);

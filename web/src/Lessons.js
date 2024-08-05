@@ -78,6 +78,7 @@ function Lessons() {
             content: "已经是第一句了",
           });
         } else {
+            console.log( sentenceIndex )
           setSentenceIndex(sentenceIndex - 1);
         }
         break;
@@ -133,8 +134,9 @@ function Lessons() {
 
       <div>
         <Button onClick={() => useAudio.current.play()}>重复</Button>
+        <Button onClick={() => changeSentence("previous")}>上一句</Button>
         <Button onClick={() => changeSentence("next")}>下一句</Button>
-        <Button onClick={() => changeSentence("pre")}>上一句</Button>
+
       </div>
     </div>
   );
