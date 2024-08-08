@@ -1,12 +1,4 @@
-from flask import Flask, request, jsonify,render_template,send_file
-from werkzeug.utils import secure_filename
-import os,sys,shutil
-from split_sound import split_sound
 import pymysql
-import datetime
-from dotenv import load_dotenv
-
-
 from config import db_config
 
 
@@ -41,20 +33,22 @@ def query_all(query):
 
     return results
 
-#查询单条记录
+# 查询单条记录
+
+
 def query_one(query):
     """
     执行一个SQL查询并返回第一条结果。
-    
+
     参数:
     - query (str): 要执行的SQL查询语句。
-    
+
     返回:
     - tuple: 查询结果的第一条记录，如果没有结果则返回None。
     """
     connection = pymysql.connect(**db_config)
     result = None
-    
+
     try:
         with connection.cursor() as cursor:
             cursor.execute(query)
@@ -70,11 +64,11 @@ def query_one(query):
         # 确保连接在任何情况下都会关闭
         if connection:
             connection.close()
-    
+
     return result
 
 
-#新增记录 ，函数返回新增的行数id
+# 新增记录 ，函数返回新增的行数id
 def query_insert(query):
     """
     执行SQL插入操作并返回插入的行数和行ID。
@@ -108,11 +102,11 @@ def query_insert(query):
     return result
 
 
-#删除记录 
+# 删除记录
 def query_delete(query):
     connection = pymysql.connect(**db_config)
     result = {'success': False, 'rows_affected': 0}
-    
+
     try:
         with connection.cursor() as cursor:
             rows_affected = cursor.execute(query)
@@ -123,5 +117,5 @@ def query_delete(query):
         print(f"An error occurred during delete operation: {e}")
     finally:
         connection.close()
-    
+
     return result

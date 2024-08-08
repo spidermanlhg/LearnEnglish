@@ -1,6 +1,0 @@
-flask
-werkzeug
-pymysql
-datetime
-python_dotenv
-pydub

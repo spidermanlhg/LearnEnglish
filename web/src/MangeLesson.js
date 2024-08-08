@@ -19,7 +19,8 @@ const App = () => {
   const [booksList, setBooksList] = useState();  // 书籍列表
   const [loading, setLoading] = useState(false);  // 分隔音频时loading状态。
   const [messageApi, contextHolder] = message.useMessage();  //分隔成功后的提示语
-  const [length, setLength] = useState(0);  //某个课程中lessons的数量
+  const [lessonsList, setLessonsList] = useState();  //某个课程中lessons列表内容
+  const [isListModalOpen,  setIsListModalOpen ] = useState(false)
 
   const getUploadProps = (bookId) => ({
     name: "file",
@@ -53,6 +54,37 @@ const App = () => {
     });
   };
 
+// 分隔音频文件
+const onClickSplitLesson = ( lessonid ) => {
+
+    setLoading(true);
+
+    axios.get(`/api/split/lesson/${lessonid}`).then(() => {
+        setLoading(false);
+        messageApi.open({
+        type: "success",
+        content: "批量分隔完成",
+        });
+    });
+    };
+
+
+  //查看lessons 列表
+  const getLessonsList = ( id )=>{
+
+    axios
+    .get("/api/books/"+id )
+    .then((r) => {
+      setLessonsList(r.data );
+      setIsListModalOpen(true)
+    }).then( ()=> console.log( lessonsList )
+    )
+    .catch((error) => {
+      console.error("Error fetching Lessons:", error);
+    });
+
+  }
+
   const columns = [
     {
       title: "ID",
@@ -66,10 +98,9 @@ const App = () => {
     },
     {
         title:"lessons数量",
-        // dataIndex:"length",
-        key:"length",
-        render:()=>(
-            <Button type="link" >{length}</Button>
+        key:"total",
+        render:(record)=>(
+            <Button onClick={ () =>getLessonsList( record.id )   }  type="link" >{ record.total  }</Button>
         )
     },
     {
@@ -97,10 +128,7 @@ const App = () => {
     axios
       .get("/api/books")
       .then((r) => {
-        console.log(r);
         setBooksList(r.data);
-
-        // setLength(  )
       })
       .catch((error) => {
         console.error("Error fetching books:", error);
@@ -112,11 +140,41 @@ const App = () => {
   const showModal = () => {
     setIsModalOpen(true);
   };
+
+
+  const lessonsColumns = [
+    {
+        title: "ID",
+        dataIndex: "id",
+        key: "id",
+      },
+      {
+        title: "课程名称",
+        dataIndex: "name",
+        key: "name",
+      },
+      {
+        title: "是否分隔",
+        dataIndex: "status",
+        key: "status",
+      },
+
+      {
+        title: "分隔音频",
+        key: "split",
+        render: (record) => (
+            <Button onClick={() => onClickSplitLesson( record.id ) } loading={loading}  >
+              生成sentences
+            </Button>
+          ),
+      },
+  ]
+
+
   const handleOk = (value) => {
     axios
       .post("/api/add_book", { book_name: bookName })
       .then((r) => {
-        console.log("Book created successfully:", r.data);
         setIsModalOpen(false);
         setBookName("");
         fetchData();
@@ -132,6 +190,11 @@ const App = () => {
     setBookName("");
   };
 
+
+  const handleCancelList = ()=>{
+    setIsListModalOpen(false)
+  }
+
   return (
     <div>
       {contextHolder}
@@ -141,8 +204,12 @@ const App = () => {
 
       <Table columns={columns} dataSource={booksList} />
 
+      <Modal title="课程列表"  open={isListModalOpen} footer={null} onCancel={  handleCancelList }  >
+        <Table  columns={lessonsColumns} dataSource={lessonsList} />
+      </Modal>
+
       <Modal
-        title="Basic Modal"
+        title="新建书籍"
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}

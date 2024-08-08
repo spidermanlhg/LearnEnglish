@@ -1,26 +1,22 @@
-from flask import Flask, request, jsonify,render_template,send_file, Blueprint
+
+
+from flask import (Blueprint, Flask, jsonify, request,send_file)
 from werkzeug.utils import secure_filename
-import os,sys,shutil
-from split_sound import split_sound
-import pymysql
-import datetime
-from dotenv import load_dotenv
-
-from config import db_config, cur_dir
-
+from config import cur_dir, db_config
 from fn import *
+from split_sound import split_sound
+import os
 
 
+# 创建蓝图
 bp = Blueprint('my_routes', __name__)
-
-
-@bp.route( '/')
+@bp.route('/')
 def index():
-    return jsonify( "This is index" )
+    return jsonify("This is index")
 
 
 # 创建book文件夹
-@bp.route( '/api/add_book' , methods=['POST'] )
+@bp.route('/api/add_book', methods=['POST'])
 def add_book():
     # 获取POST请求中的数据
     book_name = request.json.get('book_name')
@@ -29,22 +25,20 @@ def add_book():
         return jsonify({'error': 'Missing book_name'}), 400
 
     # 插入书籍信息到数据库
-    
-    
+
     # 插入书籍信息，book_id自增，不需要传入
     query = f"INSERT INTO books (name) VALUES ('{book_name}') "
     # 执行插入操作，并获取刚插入的书籍的自增id
-    result =  query_insert( query ) 
+    result = query_insert(query)
 
     book_id = result['lastrowid']
 
     # 创建以书籍id为名的文件夹
-    folder_path = os.path.join( cur_dir , 'uploads', str(book_id))
+    folder_path = os.path.join(cur_dir, 'uploads', str(book_id))
     os.makedirs(folder_path)
 
-
-    return jsonify({'message': f'Book added successfully', 'book_id': book_id}), 200
-
+    return jsonify(
+        {'message': f'Book added successfully', 'book_id': book_id}), 200
 
 
 # 查询所有的books，返回书籍列表包括 书籍id，书籍名称，课程数量。
@@ -59,11 +53,10 @@ def get_books():
     group_query = "SELECT book_id as id, COUNT(*) AS total FROM LESSONS GROUP BY `book_id` "
     total = query_all(group_query)
 
-
     # 把每本书的课程数量合并到书籍列表中
     for i in books:
         for j in total:
-            if i['id'] == j['id'] :
+            if i['id'] == j['id']:
                 i.update(j)
 
     return jsonify(books)
@@ -84,7 +77,6 @@ def get_lessons(id):
     return jsonify(lessons)
 
 
-
 # 根据lesson_id 查询sentences 列表
 @bp.route('/api/lessons/<id>')
 def get_sentences(id):
@@ -93,140 +85,85 @@ def get_sentences(id):
     return jsonify(lesson)
 
 
-
-#批量上传课程音频文件
+# 批量上传课程音频文件
 @bp.route('/api/upload', methods=['POST', 'GET'])
 def upload_files():
 
     bookid = request.args.get("bookid")
- 
+
     if request.method == 'POST':
         f = request.files['file']
         bookname = secure_filename(f.filename)
-        f.save(os.path.join( cur_dir, 'uploads', bookid , bookname))
+        f.save(os.path.join(cur_dir, 'uploads', bookid, bookname))
 
-
-    connection = pymysql.connect(**db_config)
-
-    cursor = connection.cursor()
     # 插入书籍信息，book_id自增，不需要传入
-    insert_query = f"INSERT INTO lessons (book_id, name) VALUES( '{bookid}', '{bookname}' )"
-    cursor.execute(insert_query )
-    connection.commit()
+    query = f"INSERT INTO lessons (book_id, name) VALUES( '{bookid}', '{bookname}' )"
+    query_insert(query)
 
-
-    return jsonify({'message': 'successfully',}), 200
-
-
-    cursor.close()
-    connection.close()
-    
-
-    return jsonify({'message': 'Files uploaded successfully'}), 200
-
+    return jsonify({'message': 'successfully', }), 200
 
 
 # 根据bookid批量拆分 本书下所有的mp3音频文件，并把拆分后的mp3音频文件存入到sentence表中。
-@bp.route('/api/split/<bookid>', methods=['GET']  )
-def split_book(bookid ):
+@bp.route('/api/split/<bookid>', methods=['GET'])
+def split_book(bookid):
 
-    try:
+    path = os.path.join(cur_dir, "data", str(bookid))
 
-        connection = pymysql.connect(**db_config)
+    # 判断目录是否存在
+    if os.path.exists(path):
 
-        cursor = connection.cursor()
-        
-       
-        path = os.path.join( cur_dir, "data", str(bookid) )
+        # 在生成前，先删除掉已存在分隔的音频文件，以免分隔后的文件重复。
+        shutil.rmtree(path, ignore_errors=True)
+        # 同时删除数据库中，这个bookid下所有的sentences。
+        query = f"DELETE FROM sentences where book_id = {bookid} "
+        query_delete(query)
 
-        # 判断目录是否存在
-        if os.path.exists(path):
+    # 根据bookid查询所有的lessons
+    query = f"SELECT * FROM lessons where book_id = {bookid} "
+    query_all(query)
 
-             # 在生成前，先删除掉已存在分隔的音频文件，以免分隔后的文件重复。 
-            shutil.rmtree( path , ignore_errors=True  )
-            # 同时删除数据库中，这个bookid下所有的sentences。
-            delete_lessons = f"DELETE FROM sentences where book_id = {bookid} "
-            cursor.execute( delete_lessons )
-            connection.commit()
+    # 对所有的lessons遍历
+    for i in lessons:
+        sound_list = split_sound(
+            audiopath=os.path.join(
+                cur_dir, "uploads", str(bookid), i['name']),
+            audiotype="mp3",
+            output=os.path.join(cur_dir, "data", str(bookid), str(i['id']))
+        )
 
+        for s in sound_list:
 
-        # 根据bookid查询所有的lessons
-        query = f"SELECT * FROM lessons where book_id = {bookid} "
-        cursor.execute( query )
-        lessons = cursor.fetchall()
+            query = f"INSERT INTO sentences (sn, book_id, lesson_id, name) VALUES ( {s['sn'] }, { bookid } ,{i['id']}, '{s['name']}' )"
+            query_insert(query)
 
-
-
-
-        # 对所有的lessons遍历
-        for i in lessons:
-            sound_list = split_sound( 
-                audiopath= os.path.join( cur_dir, "uploads", str(bookid), i['name']),
-                audiotype="mp3" , 
-                output=os.path.join(cur_dir,"data", str(bookid), str( i['id'] ) )
-            )
-
-            for s in sound_list:
-
-                insert_query = f"INSERT INTO sentences (sn, book_id, lesson_id, name) VALUES ( {s['sn'] }, { bookid } ,{i['id']}, '{s['name']}' )"
-                cursor.execute(insert_query)
-                connection.commit()
-
-
-    except Exception as e:
-        connection.rollback()
-        return jsonify({'error': str(e)}), 500
-
-    finally:
-        cursor.close()
-        connection.close()
-    
-
-    return jsonify({'message': 'Files split successfully'} )
-
+    return jsonify({'message': 'Files split successfully'})
 
 
 # 根据lessonid分隔音频
-@bp.route('/api/split/lesson/<lessonid>', methods=['GET']  )
-def split_lesson( lessonid  ):
+@bp.route('/api/split/lesson/<lessonid>', methods=['GET'])
+def split_lesson(lessonid):
 
-    connection = pymysql.connect(**db_config)
-    cursor = connection.cursor()
-
+    # 根据lesson id 查询课程信息
     query = f'SELECT * FROM `lessons` WHERE `id` = {lessonid}'
-    cursor.execute(query)
-    lesson = cursor.fetchone()
+    query_one( query )
 
+    audiopath = os.path.join(
+        cur_dir, "uploads", str(
+            lesson['book_id']), lesson['name'])
+    audiotype = "mp3"
+    output = os.path.join(
+        cur_dir, "data", str(
+            lesson['book_id']), str(
+            lesson['id']))
 
-    audiopath = os.path.join( cur_dir, "uploads", str(lesson['book_id'] ), lesson['name']   )
-    audiotype = "mp3"  
-    output =    os.path.join( cur_dir,"data", str(lesson['book_id']), str(lesson['id']) )
+    sound_list = split_sound(
+        audiopath=audiopath,
+        audiotype=audiotype,
+        output=output)
 
-    
-    sound_list = split_sound( audiopath=audiopath, audiotype=audiotype, output=output )
+    print(sound_list)
 
-    print( sound_list )
-
-    # 先检查是否存在已经分隔好的音频文件，如果存在，先删除掉，再分隔新的音频文件
-
-
-
-    # for s in sound_list:
-
-    #     insert_query = f"INSERT INTO sentences (sn, book_id, lesson_id, name) VALUES ( {s['sn'] }, { bookid } ,{lessonid}, '{s['name']}' )"
-    #     cursor.execute(insert_query)
-    #     connection.commit()
-
-
-
-    cursor.close()
-    connection.close()
-    
-
-    return jsonify({'message': 'Files split successfully'} )
-
-
-
+    return jsonify({'message': 'Files split successfully'})
 
 
 # 服务端返回音频文件
@@ -235,17 +172,15 @@ def play_audio(bid, lid, sid):  # 注意这里添加了 bid 和 lid 作为参数
 
     # 指定音频文件的路径
 
-    audio_path= os.path.join( cur_dir, "data", str(bid), str(lid), str(sid) )
-    
+    audio_path = os.path.join(cur_dir, "data", str(bid), str(lid), str(sid))
+
     # 使用 send_file 函数发送音频文件
     return send_file(audio_path, mimetype='audio/mpeg')
 
 
 @bp.errorhandler(404)
 def page_not_found(error):
-    return 'This page does not exist', 404   
-
-
+    return 'This page does not exist', 404
 
 
 # 导出蓝图对象

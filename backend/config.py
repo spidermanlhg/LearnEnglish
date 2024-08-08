@@ -1,11 +1,6 @@
-from flask import Flask, request, jsonify,render_template,send_file
-from werkzeug.utils import secure_filename
-import os,sys,shutil
-from split_sound import split_sound
-import pymysql
-import datetime
+import os,sys
 from dotenv import load_dotenv
-
+import pymysql
 
 # 加载.env文件
 # 本地测试环境 和 线上正式环境 各放一个.env文件，里面写每个环境自己的配置。
