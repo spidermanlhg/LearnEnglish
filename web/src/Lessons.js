@@ -26,10 +26,14 @@ function Lessons() {
   //通过bookid 获取 课程内容。
   const fetchBookData = async () => {
     try {
+        
       const { data } = await axios.get(`/api/books/${bookid}`);
 
+
+      console.log( data )
+
       if (data) {
-        const lessons = data.lessons.map((item) => ({
+        const lessons = data.map((item) => ({
           value: item.id,
           label: item.name,
         }));

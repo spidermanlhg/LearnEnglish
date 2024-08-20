@@ -1,26 +1,33 @@
 import React, { useEffect, useState } from "react";
 import {
-  Space,
   Table,
-  Tag,
   Button,
   Modal,
   Input,
   Upload,
   message,
-  Spin,
+  Grid ,
+  Col, 
+  Row
 } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
-import axios from "axios";
+
+import LoadingButton from "./LoadingButton";
+import axios from './api';
+
 
 const App = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);  //是否打开上传弹窗
   const [bookName, setBookName] = useState("");  // 书籍名称
   const [booksList, setBooksList] = useState();  // 书籍列表
-  const [loading, setLoading] = useState(false);  // 分隔音频时loading状态。
+  const [loading, setLoading ] = useState(false)
   const [messageApi, contextHolder] = message.useMessage();  //分隔成功后的提示语
   const [lessonsList, setLessonsList] = useState();  //某个课程中lessons列表内容
   const [isListModalOpen,  setIsListModalOpen ] = useState(false)
+  const [username, setUsername] = useState()
+
+
+  
 
   const getUploadProps = (bookId) => ({
     name: "file",
@@ -42,15 +49,15 @@ const App = () => {
   });
 
   // 分隔音频文件
-  const onClickSplit = (id) => {
-    setLoading(true);
+  const onClickSplit = (id, callback ) => {
+    
 
     axios.get(`/api/split/${id}`).then(() => {
-      setLoading(false);
-      messageApi.open({
-        type: "success",
-        content: "批量分隔完成",
-      });
+        callback();
+        messageApi.open({
+            type: "success",
+            content: "批量分隔完成",
+        });
     });
   };
 
@@ -117,14 +124,19 @@ const onClickSplitLesson = ( lessonid ) => {
       title: "分隔音频",
       key: "split",
       render: (record) => (
-        <Button onClick={() => onClickSplit(record.id)} loading={loading}>
-          批量生成sentences
-        </Button>
+        <LoadingButton
+        onClick={(callback) => onClickSplit(record.id, callback)}
+          loading={loading}
+          text="批量生成sentences"
+        />
       ),
     },
   ];
 
   const fetchData = () => {
+
+    axios.get("/api/cur_user").then( r => setUsername(  r.data.username ) )
+
     axios
       .get("/api/books")
       .then((r) => {
@@ -163,9 +175,11 @@ const onClickSplitLesson = ( lessonid ) => {
         title: "分隔音频",
         key: "split",
         render: (record) => (
-            <Button onClick={() => onClickSplitLesson( record.id ) } loading={loading}  >
-              生成sentences
-            </Button>
+            <LoadingButton
+            onClick={(callback) => onClickSplit(record.id, callback)}
+            loading={loading}
+            text="生成sentences"
+            />
           ),
       },
   ]
@@ -195,12 +209,32 @@ const onClickSplitLesson = ( lessonid ) => {
     setIsListModalOpen(false)
   }
 
+  const logout = ()=>{
+    axios.get( "/api/logout" ).then(  (r)=>{
+        if (r.data.status === "ok"){
+            window.location.href = '/login';
+        }
+    }  )
+  }
+
   return (
     <div>
-      {contextHolder}
-      <Button type="primary" onClick={showModal}>
-        新建
-      </Button>
+
+        <Row>
+            <Col span={12}>
+                <Button type="primary" onClick={showModal}>
+                    新建
+                </Button>
+            </Col>
+            <Col span={12} style={ { textAlign:"right" } } >
+                {username}, 你好！  
+                    <Button onClick={ logout } >退出登录</Button>
+                {contextHolder}
+            </Col>
+        </Row>
+
+
+
 
       <Table columns={columns} dataSource={booksList} />
 
@@ -224,3 +258,5 @@ const onClickSplitLesson = ( lessonid ) => {
   );
 };
 export default App;
+
+
