@@ -2,7 +2,7 @@
 .wmv
 *.pyc
 
-/__pycache__
+__pycache__
 /app/static/uploads
 /app/static/data
 /app/__pycache__

@@ -69,12 +69,13 @@ def query_one(query):
 
 
 # 新增记录 ，函数返回新增的行数id
-def query_insert(query):
+def query_insert(query, params=None):
     """
     执行SQL插入操作并返回插入的行数和行ID。
 
     参数:
     - query (str): SQL插入语句。
+    - params (tuple): 可选的参数化查询参数。
 
     返回:
     - dict: 包含'rowcount'和'lastrowid'的字典，分别表示受影响的行数和新插入行的ID。
@@ -84,7 +85,10 @@ def query_insert(query):
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute(query)
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
             connection.commit()
             result['rowcount'] = cursor.rowcount
             result['lastrowid'] = cursor.lastrowid
@@ -115,6 +119,39 @@ def query_delete(query):
             result['rows_affected'] = rows_affected
     except Exception as e:
         print(f"An error occurred during delete operation: {e}")
+    finally:
+        connection.close()
+
+    return result
+
+
+# 更新记录
+def query_update(query, params=None):
+    """
+    执行SQL更新操作并返回受影响的行数。
+
+    参数:
+    - query (str): SQL更新语句。
+    - params (tuple): 可选的参数化查询参数。
+
+    返回:
+    - dict: 包含'success'和'rows_affected'的字典，分别表示操作是否成功和受影响的行数。
+    """
+    connection = pymysql.connect(**db_config)
+    result = {'success': False, 'rows_affected': 0}
+
+    try:
+        with connection.cursor() as cursor:
+            if params:
+                rows_affected = cursor.execute(query, params)
+            else:
+                rows_affected = cursor.execute(query)
+            connection.commit()
+            result['success'] = True
+            result['rows_affected'] = rows_affected
+    except Exception as e:
+        print(f"An error occurred during update operation: {e}")
+        return result
     finally:
         connection.close()
 
