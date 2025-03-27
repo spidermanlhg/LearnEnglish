@@ -92,7 +92,7 @@ function Lessons() {
         const obj = sentenceList?.find( item => item.sn === sentenceIndex);
 
         if (obj && obj.name) {
-            const path = `/audio/${bookid}/${lessonid}/${obj.name}`; // 设置句子的音频文件路径
+            const path = `/api/audio/${bookid}/${lessonid}/${obj.name}`; // 设置句子的音频文件路径
             setPath(path);
             setCurrentText(obj.text || ''); // 设置当前句子的文本
         }

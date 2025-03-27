@@ -1,6 +1,6 @@
 from flask import (Blueprint, Flask, jsonify, request, send_file, session)
 from werkzeug.utils import secure_filename
-from config import db_config
+from config import db_config, cur_dir
 from app.utils.db import query_all, query_one, query_insert, query_delete, query_update
 from app.utils.split_sound import split_sound
 import os,shutil
@@ -51,7 +51,7 @@ def upload_files():
         f.save(os.path.join(BASE_DIR, 'uploads', bookid, bookname))
 
     # 插入书籍信息，book_id自增，不需要传入
-    query = f"INSERT INTO lessons (book_id, name) VALUES( '{bookid}', '{bookname}' )"
+    query = f"INSERT INTO lessons (book_id, name,status) VALUES( '{bookid}', '{bookname}',0 )"
     query_insert(query)
 
     return jsonify({'message': 'successfully', }), 200
@@ -85,7 +85,8 @@ def split_book(bookid):
             output=os.path.join(BASE_DIR, "data", str(bookid), str(i['id'])),
             by_sentence=True,
             min_segment_length=1.5,  # 最小分段长度（秒）
-            max_segment_length=8.0   # 最大分段长度（秒）
+            max_segment_length=8.0,  # 最大分段长度（秒）
+            model_size="tiny"        # 使用更小的模型以节省资源
         )
 
         print( sound_list )
@@ -157,7 +158,8 @@ def split_lesson(lessonid):
             output=output,
             by_sentence=True,
             min_segment_length=1.5,  # 最小分段长度（秒）
-            max_segment_length=8.0   # 最大分段长度（秒）
+            max_segment_length=8.0,  # 最大分段长度（秒）
+            model_size="tiny"        # 使用更小的模型以节省资源
         )
 
         if not sound_list:

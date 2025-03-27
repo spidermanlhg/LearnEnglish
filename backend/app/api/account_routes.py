@@ -9,24 +9,29 @@ ac = Blueprint("account" , __name__)
 @ac.route( '/api/login' , methods = ['POST']  )
 def login():
     
-    role = request.json.get('role')
-    username = request.json.get("username")
-    password = request.json.get("password")
+    try:
+        role = request.json.get('role')
+        username = request.json.get("username")
+        password = request.json.get("password")
 
-    # print( username )
-
-    sql = f"select * from users where role={int(role)} and username='{username}' and password='{password}'"
-    user_info = query_one( sql  )
-
-    if user_info:
+        if not all([role, username, password]):
+            return {"status": "fail", "error": "请填写完整的登录信息"}
         
-        session["user_info"] = user_info
-        session.permanent = True
+        # 使用参数化查询防止SQL注入
+        sql = "select * from users where role=%s and username=%s and password=%s"
+        params = (int(role), username, password)
+        # print(params,sql)
+        user_info = query_one(sql, params)
 
-        return { "status":"ok", "user_info":user_info }
-    
-    else :
-        return { "status":"fail", "error":"用户名或密码错误"  }
+        if user_info:
+            session["user_info"] = user_info
+            session.permanent = True
+            return {"status": "ok", "user_info": user_info}
+        else:
+            return {"status": "fail", "error": "用户名或密码错误"}
+            
+    except Exception as e:
+        return {"status": "fail", "error": str(e)}
 
 
 # 获取登录用户信息

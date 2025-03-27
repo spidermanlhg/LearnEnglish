@@ -6,11 +6,14 @@ import pymysql
 # 本地测试环境 和 线上正式环境 各放一个.env文件，里面写每个环境自己的配置。
 load_dotenv()
 
+
+
 # 从 .env 文件中获取环境变量
 environment = os.getenv('ENVIRONMENT')
 database_host = os.getenv('DATABASE_HOST')
 database_user = os.getenv('DATABASE_USER')
 database_pwd = os.getenv('DATABASE_PWD')
+print(  )
 
 
 # 获取当前脚本的完整路径， 读写文件的时候，需要这个路径

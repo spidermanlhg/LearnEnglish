@@ -1,8 +1,24 @@
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
-import os, sys,re
+import os, sys, re
 import shutil
 import whisper
+import os
+import torch
+import gc
+import logging
+import time
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# 全局变量，用于存储已加载的模型
+_whisper_model = None
+_whisper_model_size = None
+_whisper_device = None
 
 # 获取当前脚本的完整路径
 script_path = os.path.abspath(sys.argv[0])
@@ -12,7 +28,55 @@ cur_dir = os.path.dirname(script_path)
 
 
 
-def split_sound(audiopath, audiotype, output, by_sentence=True, min_segment_length=1.0, max_segment_length=10.0):
+def get_whisper_model(model_size="tiny", device=None):
+    """
+    获取Whisper模型的单例实例
+    
+    参数:
+        model_size: 模型大小，可选值为 "tiny", "base", "small", "medium", "large"
+        device: 运行设备，可以是 "cpu", "cuda", "cuda:0" 等，如果为None则自动选择
+    
+    返回:
+        加载好的Whisper模型实例
+    """
+    global _whisper_model, _whisper_model_size, _whisper_device
+    
+    # 自动选择设备
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # 如果模型已加载且参数一致，直接返回
+    if _whisper_model is not None and _whisper_model_size == model_size and _whisper_device == device:
+        logger.info(f"使用已加载的Whisper模型 (大小: {model_size}, 设备: {device})")
+        return _whisper_model
+    
+    # 如果已有模型但参数不一致，先释放资源
+    if _whisper_model is not None:
+        logger.info(f"释放旧模型资源 (大小: {_whisper_model_size}, 设备: {_whisper_device})")
+        del _whisper_model
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    
+    # 加载新模型
+    start_time = time.time()
+    logger.info(f"加载Whisper模型 (大小: {model_size}, 设备: {device})")
+    
+    try:
+        _whisper_model = whisper.load_model(model_size, device=device)
+        _whisper_model_size = model_size
+        _whisper_device = device
+        logger.info(f"模型加载完成，耗时: {time.time() - start_time:.2f}秒")
+        return _whisper_model
+    except Exception as e:
+        logger.error(f"加载模型失败: {e}")
+        # 如果加载失败，尝试使用CPU
+        if device != "cpu":
+            logger.info("尝试使用CPU加载模型")
+            return get_whisper_model(model_size, "cpu")
+        raise
+
+def split_sound(audiopath, audiotype, output, by_sentence=True, min_segment_length=1.0, max_segment_length=10.0, model_size="base", device=None):
     '''
     audiopath 音频文件路径
     audiotype 音频文件类型
@@ -20,6 +84,8 @@ def split_sound(audiopath, audiotype, output, by_sentence=True, min_segment_leng
     by_sentence 是否按句子分割，默认为True
     min_segment_length 最小分段长度（秒），默认为1.0秒
     max_segment_length 最大分段长度（秒），默认为10.0秒
+    model_size Whisper模型大小，可选值为 "tiny", "base", "small", "medium", "large"，默认为"base"
+    device 运行设备，可以是 "cpu", "cuda", "cuda:0" 等，如果为None则自动选择
 
     该函数分隔音频文件后，返回分隔后的音频文件名称。
     '''
@@ -29,7 +95,7 @@ def split_sound(audiopath, audiotype, output, by_sentence=True, min_segment_leng
 
     try:
         # 读入音频
-        print(f'读入音频{audiopath}' )
+        logger.info(f'读入音频: {audiopath}')
         sound = AudioSegment.from_file(file=audiopath, format=audiotype)
         
         # 创建保存目录
@@ -39,15 +105,32 @@ def split_sound(audiopath, audiotype, output, by_sentence=True, min_segment_leng
         
         if by_sentence:
             # 使用Whisper获取句子时间戳
-            print('使用Whisper识别句子')
-            model = whisper.load_model("base")
+            logger.info(f'使用Whisper识别句子 (模型: {model_size})')
+            
+            # 获取模型实例（使用单例模式）
+            model = get_whisper_model(model_size, device)
+            
+            # 记录内存使用情况
+            if torch.cuda.is_available():
+                before_mem = torch.cuda.memory_allocated() / (1024 ** 3)  # GB
+                logger.info(f'转录前GPU内存使用: {before_mem:.2f} GB')
+            
             # 使用更高质量的转录设置
+            transcribe_start = time.time()
             result = model.transcribe(
                 audiopath, 
                 condition_on_previous_text=False, 
                 word_timestamps=True,
-                verbose=False
+                verbose=False,
+                fp16=(device != "cpu")  # 在GPU上使用半精度加速
             )
+            
+            logger.info(f'转录完成，耗时: {time.time() - transcribe_start:.2f}秒')
+            
+            # 记录转录后内存使用
+            if torch.cuda.is_available():
+                after_mem = torch.cuda.memory_allocated() / (1024 ** 3)  # GB
+                logger.info(f'转录后GPU内存使用: {after_mem:.2f} GB, 增加: {after_mem - before_mem:.2f} GB')
             
             # 使用word_timestamps来更精确地识别句子边界
             print('分析语音片段和单词时间戳')
@@ -177,7 +260,15 @@ def split_sound(audiopath, audiotype, output, by_sentence=True, min_segment_leng
         print('保存完毕')
 
     except Exception as e:
-        print(f"Error occurred: {e}")
+        logger.error(f"处理音频时出错: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+    finally:
+        # 清理内存
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            logger.info(f'内存清理完成，当前GPU内存使用: {torch.cuda.memory_allocated() / (1024 ** 3):.2f} GB')
 
     return name_list
 
@@ -196,7 +287,9 @@ if __name__ == "__main__":
         output, 
         by_sentence=True,
         min_segment_length=1.5,  # 最小分段长度（秒）
-        max_segment_length=8.0   # 最大分段长度（秒）
+        max_segment_length=8.0,  # 最大分段长度（秒）
+        model_size="tiny",       # 使用更小的模型以节省资源
+        device=None              # 自动选择设备
     )
     
     # 如果需要使用原来的静默检测方法分割

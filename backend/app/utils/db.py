@@ -36,12 +36,13 @@ def query_all(query):
 # 查询单条记录
 
 
-def query_one(query):
+def query_one(query, params=None):
     """
     执行一个SQL查询并返回第一条结果。
 
     参数:
     - query (str): 要执行的SQL查询语句。
+    - params (tuple): 可选的参数化查询参数。
 
     返回:
     - tuple: 查询结果的第一条记录，如果没有结果则返回None。
@@ -51,7 +52,10 @@ def query_one(query):
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute(query)
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
             result = cursor.fetchone()
     except Exception as e:
         # 可以在这里记录错误，例如写入日志
