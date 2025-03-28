@@ -3,7 +3,7 @@ from werkzeug.utils import secure_filename
 from config import db_config, cur_dir
 from app.utils.db import query_all, query_one, query_insert, query_delete, query_update
 from app.utils.split_sound import split_sound
-import os,shutil
+import os, shutil, time
 
 # 获取当前文件所在目录的上级目录作为项目根目录
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,12 +47,25 @@ def upload_files():
 
     if request.method == 'POST':
         f = request.files['file']
-        bookname = secure_filename(f.filename)
-        f.save(os.path.join(BASE_DIR, 'uploads', bookid, bookname))
-
-    # 插入书籍信息，book_id自增，不需要传入
-    query = f"INSERT INTO lessons (book_id, name,status) VALUES( '{bookid}', '{bookname}',0 )"
-    query_insert(query)
+        # 保存原始文件名用于数据库存储
+        original_filename = f.filename
+        # 使用secure_filename处理文件系统存储
+        safe_filename = secure_filename(f.filename)
+        # 如果secure_filename返回空字符串或只返回扩展名（可能是因为全是中文），使用一个默认名称加上原始扩展名
+        if not safe_filename or safe_filename == original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else False:
+            if '.' in original_filename:
+                extension = original_filename.rsplit('.', 1)[1].lower()
+                safe_filename = f"file_{int(time.time())}.{extension}"
+            else:
+                safe_filename = f"file_{int(time.time())}"
+        
+        # 保存文件使用安全的文件名
+        f.save(os.path.join(BASE_DIR, 'uploads', bookid, safe_filename))
+        
+        # 在数据库中存储原始文件名和安全文件名
+        # 插入书籍信息，book_id自增，不需要传入
+        query = f"INSERT INTO lessons (book_id, name, file_path, status) VALUES( '{bookid}', '{original_filename}', '{safe_filename}', 0 )"
+        query_insert(query)
 
     return jsonify({'message': 'successfully', }), 200
 
@@ -78,9 +91,11 @@ def split_book(bookid):
 
     # 对所有的lessons遍历
     for i in lessons:
+        # 使用file_path字段（如果存在）或回退到name字段
+        file_name = i.get('file_path', i['name'])
         sound_list = split_sound(
             audiopath=os.path.join(
-                BASE_DIR, "uploads", str(bookid), i['name']),
+                BASE_DIR, "uploads", str(bookid), file_name),
             audiotype="mp3",
             output=os.path.join(BASE_DIR, "data", str(bookid), str(i['id'])),
             by_sentence=True,
@@ -120,9 +135,11 @@ def split_lesson(lessonid):
             return jsonify({'error': 'Lesson not found'}), 404
 
         print(f'找到课程: {lesson}')
+        # 使用file_path字段（如果存在）或回退到name字段
+        file_name = lesson.get('file_path', lesson['name']  )
         audiopath = os.path.join(
             BASE_DIR, "uploads", str(
-                lesson['book_id']), lesson['name'])
+                lesson['book_id']), file_name)
         
         print(f'音频文件路径: {audiopath}')
         # 检查音频文件是否存在
